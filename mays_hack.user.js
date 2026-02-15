@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         RPG Maker MZ Ultimate Mobile Controller & Hack
+// @name         RPG Maker MZ Ultimate Mobile Controller & Hack v4.0
 // @namespace    http://tampermonkey.net/
-// @version      3.0
-// @description  نظام التحكم الكامل: تدوير الشاشة + تهكير الموارد + أدوات المطور
+// @version      4.0
+// @description  نظام التحكم المتطور: تدوير + سرعة متغيرة + تهكير كامل
 // @author       Gemini
 // @match        https://api.erogames.to/game/mays-summer-vacation-v0042/web*
 // @grant        none
@@ -11,34 +11,48 @@
 (function() {
     'use strict';
 
-    // --- 1. إعدادات التصميم (Styles) ---
+    // --- 1. إعدادات التصميم المتطورة (Advanced CSS) ---
     const style = document.createElement('style');
     style.innerHTML = `
         #gemini-menu {
-            position: fixed; top: 10%; right: -260px; width: 250px; height: 80vh;
-            background: rgba(15, 15, 15, 0.95); border: 2px solid gold; border-radius: 15px 0 0 15px;
-            z-index: 999999; transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            padding: 15px; color: white; font-family: sans-serif; overflow-y: auto; box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            position: fixed; top: 5%; right: -280px; width: 260px; height: 90vh;
+            background: rgba(10, 10, 10, 0.98); border: 3px solid #ffd700; border-radius: 20px 0 0 20px;
+            z-index: 999999; transition: right 0.4s ease-in-out;
+            padding: 20px; color: #fff; font-family: 'Segoe UI', sans-serif; overflow-y: auto;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.8);
         }
         #gemini-menu.open { right: 0; }
         #gemini-toggle {
-            position: fixed; top: 50%; right: 10px; width: 45px; height: 45px;
-            background: gold; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; z-index: 1000000; cursor: pointer; border: 2px solid #333;
-            box-shadow: 0 0 10px gold; transform: translateY(-50%);
+            position: fixed; top: 40%; right: 10px; width: 65px; height: 65px; /* تكبير الترس */
+            background: linear-gradient(45deg, #ffd700, #ff8c00); border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 35px; z-index: 1000000; cursor: pointer; border: 3px solid #fff;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); transform: translateY(-50%);
+            user-select: none; transition: transform 0.2s;
         }
+        .h-section { border-bottom: 1px solid #333; margin-bottom: 15px; padding-bottom: 15px; }
+        .h-title { color: #ffd700; font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block; }
         .h-btn {
-            width: 100%; padding: 10px; margin: 5px 0; border: none; border-radius: 8px;
-            background: #333; color: gold; font-weight: bold; cursor: pointer; transition: 0.2s;
+            width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px;
+            background: #222; color: #fff; font-weight: bold; cursor: pointer;
         }
-        .h-btn:active { transform: scale(0.95); background: gold; color: black; }
-        .h-section { border-bottom: 1px solid #444; margin-bottom: 10px; padding-bottom: 10px; }
-        .h-title { color: #aaa; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
-        .rotate-90 { transform: rotate(90deg); transform-origin: center; width: 100vh !important; height: 100vw !important; }
+        .active-feature { background: #4caf50 !important; border: 1px solid #fff; }
+        
+        /* تصميم شريط السرعة (Slider) */
+        .slider-container { margin: 10px 0; text-align: center; }
+        .h-slider {
+            width: 100%; height: 10px; border-radius: 5px; background: #444;
+            outline: none; -webkit-appearance: none;
+        }
+        .h-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px;
+            background: #ffd700; border-radius: 50%; cursor: pointer;
+        }
+        #speed-val { font-size: 18px; color: #ffd700; font-weight: bold; }
     `;
     document.head.appendChild(style);
 
-    // --- 2. بناء واجهة المستخدم ---
+    // --- 2. بناء الواجهة ---
     const menu = document.createElement('div');
     menu.id = 'gemini-menu';
     const toggle = document.createElement('div');
@@ -46,130 +60,122 @@
     toggle.innerHTML = '⚙️';
 
     menu.innerHTML = `
-        <h2 style="text-align:center; color:gold; margin-top:0;">MAYS HACK v3.0</h2>
+        <h2 style="text-align:center; color:#ffd700; margin-bottom:20px;">GEMINI PANEL</h2>
         
         <div class="h-section">
-            <div class="h-title">عرض الشاشة (Display)</div>
-            <button class="h-btn" id="btn-rotate">🔄 تدوير الشاشة (Force Landscape)</button>
-            <button class="h-btn" id="btn-fullscreen">🖥️ ملء الشاشة</button>
+            <span class="h-title">⚙️ التحكم بالسرعة</span>
+            <div class="slider-container">
+                <input type="range" min="1" max="10" value="4" class="h-slider" id="speed-range">
+                <p>السرعة الحالية: <span id="speed-val">4</span></p>
+            </div>
         </div>
 
         <div class="h-section">
-            <div class="h-title">الموارد (Economy)</div>
-            <button class="h-btn" id="btn-gold">💰 إضافة 99,999,999 ذهب</button>
-            <button class="h-btn" id="btn-items">🎒 إضافة كل الأدوات (x99)</button>
+            <span class="h-title">🔃 العرض والشاشة</span>
+            <button class="h-btn" id="btn-rotate">تدوير الشاشة 90°</button>
         </div>
 
         <div class="h-section">
-            <div class="h-title">اللاعب (Player)</div>
-            <button class="h-btn" id="btn-god">🛡️ وضع الخلود (God Mode)</button>
-            <button class="h-btn" id="btn-speed">🏃 سرعة البرق</button>
-            <button class="h-btn" id="btn-noclip">👻 اختراق الجدران</button>
+            <span class="h-title">💰 الموارد السريعة</span>
+            <button class="h-btn" id="btn-gold">إضافة المال الأقصى</button>
+            <button class="h-btn" id="btn-items">إضافة كل الحقيبة</button>
         </div>
 
         <div class="h-section">
-            <div class="h-title">أدوات المطور (Dev)</div>
-            <button class="h-btn" id="btn-debug">🐞 فتح قائمة الـ Debug</button>
-            <button class="h-btn" id="btn-save">💾 حفظ إجباري</button>
+            <span class="h-title">🛡️ أوضاع الغش (On/Off)</span>
+            <button class="h-btn" id="btn-god">وضع الخلود: معطل</button>
+            <button class="h-btn" id="btn-noclip">اختراق الجدران: معطل</button>
         </div>
-        <p style="font-size:10px; text-align:center; color:#666;">تم التصميم للهواتف - Gemini 2026</p>
+
+        <button class="h-btn" style="background:#d32f2f" onclick="location.reload()">إعادة تحميل اللعبة</button>
     `;
 
     document.body.appendChild(menu);
     document.body.appendChild(toggle);
 
-    // --- 3. وظائف التحكم (Logic) ---
+    // --- 3. المنطق البرمجي (Logic) ---
 
-    // فتح وإغلاق القائمة
     toggle.onclick = () => menu.classList.toggle('open');
 
-    // وظيفة تدوير الشاشة
-    let rotated = false;
-    document.getElementById('btn-rotate').onclick = () => {
-        const gameCanvas = document.getElementById('gameCanvas') || document.body;
-        if (!rotated) {
-            gameCanvas.style.transform = "rotate(90deg)";
-            gameCanvas.style.width = "100vh";
-            gameCanvas.style.height = "100vw";
-            gameCanvas.style.position = "fixed";
-            gameCanvas.style.top = "0";
-            gameCanvas.style.left = "0";
-            rotated = true;
-        } else {
-            gameCanvas.style.transform = "none";
-            gameCanvas.style.width = "100%";
-            gameCanvas.style.height = "100%";
-            gameCanvas.style.position = "static";
-            rotated = false;
-        }
-    };
-
-    // وظيفة إضافة المال
-    document.getElementById('btn-gold').onclick = () => {
-        if (typeof $gameParty !== 'undefined') {
-            $gameParty.gainGold(99999999);
-            notify("تم شحن الرصيد!");
-        } else alert("ادخل اللعبة أولاً!");
-    };
-
-    // إضافة كل شيء (أدوات، أسلحة، دروع)
-    document.getElementById('btn-items').onclick = () => {
-        if (typeof $gameParty !== 'undefined') {
-            [$dataItems, $dataWeapons, $dataArmors].forEach(category => {
-                category.forEach(item => { if(item && item.name) $gameParty.gainItem(item, 99); });
-            });
-            notify("تمت إضافة جميع الموارد!");
-        }
-    };
-
-    // وضع الخلود
-    let godMode = false;
-    document.getElementById('btn-god').onclick = function() {
-        godMode = !godMode;
-        if (godMode) {
-            Game_Battler.prototype.executeDamage = function(v) { 
-                if (this.isActor()) return; // لا ضرر للاعب
-                this._hp = 0; // قتل العدو فوراً
-            };
-            this.style.background = "green";
-            notify("وضع الخلود مفعل!");
-        } else {
-            location.reload(); // أسهل طريقة لإلغاء تعديل الـ prototype
-        }
-    };
-
-    // سرعة المشي
-    document.getElementById('btn-speed').onclick = () => {
+    // التحكم بالسرعة المتغيرة
+    const speedRange = document.getElementById('speed-range');
+    const speedVal = document.getElementById('speed-val');
+    speedRange.oninput = function() {
+        const val = parseInt(this.value);
+        speedVal.innerText = val;
         if (typeof $gamePlayer !== 'undefined') {
-            $gamePlayer.setMoveSpeed(6);
-            notify("السرعة: 6");
+            $gamePlayer.setMoveSpeed(val);
         }
     };
 
-    // اختراق الجدران
-    let noclip = false;
+    // تدوير الشاشة
+    let isRotated = false;
+    document.getElementById('btn-rotate').onclick = function() {
+        const canvas = document.querySelector('canvas') || document.body;
+        isRotated = !isRotated;
+        if (isRotated) {
+            canvas.style.transform = "rotate(90deg)";
+            canvas.style.width = "100vh";
+            canvas.style.height = "100vw";
+            canvas.style.position = "fixed";
+            canvas.style.top = "0"; canvas.style.left = "0";
+            this.classList.add('active-feature');
+        } else {
+            canvas.style.transform = "none";
+            canvas.style.width = ""; canvas.style.height = "";
+            canvas.style.position = "";
+            this.classList.remove('active-feature');
+        }
+    };
+
+    // إضافة المال والأدوات
+    document.getElementById('btn-gold').onclick = () => {
+        $gameParty.gainGold(99999999);
+        showNotify("تم إضافة الذهب!");
+    };
+
+    document.getElementById('btn-items').onclick = () => {
+        [$dataItems, $dataWeapons, $dataArmors].forEach(cat => {
+            cat.forEach(i => { if(i && i.name) $gameParty.gainItem(i, 99); });
+        });
+        showNotify("تم ملء الحقيبة!");
+    };
+
+    // تفعيل/تعطيل وضع الخلود
+    let godActive = false;
+    const originalDamage = Game_Battler.prototype.executeDamage;
+    document.getElementById('btn-god').onclick = function() {
+        godActive = !godActive;
+        if (godActive) {
+            Game_Battler.prototype.executeDamage = function(v) { if (!this.isActor()) this._hp = 0; };
+            this.innerText = "وضع الخلود: مفعّل";
+            this.classList.add('active-feature');
+        } else {
+            Game_Battler.prototype.executeDamage = originalDamage;
+            this.innerText = "وضع الخلود: معطل";
+            this.classList.remove('active-feature');
+        }
+    };
+
+    // تفعيل/تعطيل الاختراق
+    let noclipActive = false;
     document.getElementById('btn-noclip').onclick = function() {
-        noclip = !noclip;
-        $gamePlayer.setThrough(noclip);
-        this.style.background = noclip ? "green" : "#333";
-        notify(noclip ? "تم تفعيل الاختراق" : "تم التعطيل");
+        noclipActive = !noclipActive;
+        $gamePlayer.setThrough(noclipActive);
+        this.innerText = noclipActive ? "اختراق الجدران: مفعّل" : "اختراق الجدران: معطل";
+        if (noclipActive) this.classList.add('active-feature');
+        else this.classList.remove('active-feature');
     };
 
-    // فتح قائمة الـ Debug الأصلية في المحرك
-    document.getElementById('btn-debug').onclick = () => {
-        SceneManager.push(Scene_Debug);
-    };
-
-    // نظام التنبيهات الصغير
-    function notify(text) {
+    function showNotify(msg) {
         const n = document.createElement('div');
-        n.style = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:gold; color:black; padding:8px 20px; border-radius:20px; z-index:1000001; font-weight:bold;";
-        n.innerHTML = text;
+        n.style = "position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:gold; color:black; padding:10px 20px; border-radius:30px; z-index:2000000; font-weight:bold;";
+        n.innerText = msg;
         document.body.appendChild(n);
         setTimeout(() => n.remove(), 2000);
     }
 
-    // دعم السحب (Drag) للزر على الهاتف
+    // دعم سحب زر الترس باللمس
     toggle.ontouchmove = (e) => {
         const touch = e.touches[0];
         toggle.style.top = touch.clientY + 'px';
